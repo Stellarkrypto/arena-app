@@ -10,9 +10,11 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null);
 
   const loadProfile = useCallback(async (userId) => {
-    const { data: p } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    const { data: p, error: pErr } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (pErr) { setAuthError(`profile: ${pErr.message}`); }
     setProfile(p || null);
-    const { data: bal } = await supabase.from("wallet_balances").select("balance").eq("user_id", userId).maybeSingle();
+    const { data: bal, error: bErr } = await supabase.from("wallet_balances").select("balance").eq("user_id", userId).maybeSingle();
+    if (bErr) { setAuthError((prev) => prev || `balance: ${bErr.message}`); }
     setBalance(bal?.balance || 0);
   }, []);
 

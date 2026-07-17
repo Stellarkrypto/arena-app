@@ -5,7 +5,7 @@ import { useAuth } from "../AuthContext";
 import { bg0, bg1, bg2, border, purple, purpleDeep, pink, green, red, textPrimary, textSecondary, textMuted, money, inputStyle, btnPrimary, Field, SectionLabel } from "../theme";
 
 export default function Profile() {
-  const { session, profile, balance, refresh, signOut } = useAuth();
+  const { session, profile, balance, refresh, signOut, authError } = useAuth();
   const [editing, setEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [modal, setModal] = useState(null);
@@ -55,7 +55,18 @@ export default function Profile() {
     refresh();
   };
 
-  if (!profile) return <p style={{ fontSize: 13, color: textMuted }}>Loading…</p>;
+  if (!profile) {
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: textMuted }}>Loading…</p>
+        {authError && (
+          <div style={{ marginTop: 12, padding: 12, background: bg1, border: `0.5px solid ${red}`, borderRadius: 10 }}>
+            <p style={{ fontSize: 12, color: red, margin: 0 }}>Error: {authError}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (editing) {
     return (
