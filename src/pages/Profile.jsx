@@ -166,11 +166,14 @@ function MenuRow({ icon, iconBg, title, subtitle, onClick }) {
 
 function DepositModal({ paymentSettings, onSubmit, onClose }) {
   const [amt, setAmt] = useState(""); const [trxId, setTrxId] = useState(""); const [err, setErr] = useState("");
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
     const n = Number(amt);
     if (!n || n <= 0) return setErr("Enter a valid amount.");
     if (!trxId.trim()) return setErr("Enter the transaction ID from your payment.");
-    onSubmit(n, trxId.trim());
+    if (submitting) return;
+    setSubmitting(true);
+    try { await onSubmit(n, trxId.trim()); } finally { setSubmitting(false); }
   };
   return (
     <ModalShell title="Add money" onClose={onClose}>
@@ -184,19 +187,24 @@ function DepositModal({ paymentSettings, onSubmit, onClose }) {
       <Field label="Amount you sent"><input style={inputStyle} type="number" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="৳ 0" autoFocus /></Field>
       <Field label="Transaction ID"><input style={inputStyle} value={trxId} onChange={(e) => setTrxId(e.target.value)} placeholder="e.g. 8N7K2P1QXR" /></Field>
       {err && <p style={{ fontSize: 12, color: red, margin: "-6px 0 12px" }}>{err}</p>}
-      <button onClick={submit} style={{ ...btnPrimary, width: "100%" }}>Submit deposit request</button>
+      <button onClick={submit} disabled={submitting} style={{ ...btnPrimary, width: "100%", opacity: submitting ? 0.6 : 1 }}>
+        {submitting ? "Submitting…" : "Submit deposit request"}
+      </button>
     </ModalShell>
   );
 }
 
 function WithdrawModal({ balance, onSubmit, onClose }) {
   const [amt, setAmt] = useState(""); const [number, setNumber] = useState(""); const [err, setErr] = useState("");
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
     const n = Number(amt);
     if (!n || n <= 0) return setErr("Enter a valid amount.");
     if (n > balance) return setErr(`You only have ${money(balance)} available.`);
     if (!number.trim()) return setErr("Enter the number to send your withdrawal to.");
-    onSubmit(n, number.trim());
+    if (submitting) return;
+    setSubmitting(true);
+    try { await onSubmit(n, number.trim()); } finally { setSubmitting(false); }
   };
   return (
     <ModalShell title="Withdraw" onClose={onClose}>
@@ -204,7 +212,9 @@ function WithdrawModal({ balance, onSubmit, onClose }) {
       <Field label="Amount"><input style={inputStyle} type="number" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="৳ 0" autoFocus /></Field>
       <Field label="Send to (bKash/Nagad number)"><input style={inputStyle} value={number} onChange={(e) => setNumber(e.target.value)} placeholder="01XXXXXXXXX" /></Field>
       {err && <p style={{ fontSize: 12, color: red, margin: "-6px 0 12px" }}>{err}</p>}
-      <button onClick={submit} style={{ ...btnPrimary, width: "100%" }}>Request withdrawal</button>
+      <button onClick={submit} disabled={submitting} style={{ ...btnPrimary, width: "100%", opacity: submitting ? 0.6 : 1 }}>
+        {submitting ? "Submitting…" : "Request withdrawal"}
+      </button>
     </ModalShell>
   );
 }

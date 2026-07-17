@@ -1,22 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Lock, Trophy, Users } from "lucide-react";
+import { ChevronLeft, Lock, Trophy, Users, Target } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../AuthContext";
+import { useCountdown, roomIsUnlockable } from "../useCountdown";
 import { bg0, bg1, bg2, border, purple, green, amber, red, textPrimary, textSecondary, textMuted, money, tagFor } from "../theme";
-
-function useCountdown(target) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!target) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [target]);
-  if (!target) return null;
-  const diff = new Date(target).getTime() - now;
-  if (diff <= 0) return { started: true, h: 0, m: 0, s: 0 };
-  return { started: false, h: Math.floor(diff / 3600000), m: Math.floor((diff % 3600000) / 60000), s: Math.floor((diff % 60000) / 1000) };
-}
 
 export default function MatchDetail() {
   const { id } = useParams();
@@ -24,16 +12,21 @@ export default function MatchDetail() {
   const { session, refresh } = useAuth();
   const [match, setMatch] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [results, setResults] = useState([]);
   const [showRoom, setShowRoom] = useState(false);
   const [showPrize, setShowPrize] = useState(false);
   const [toast, setToast] = useState("");
   const cd = useCountdown(match?.start_time);
 
   const load = useCallback(async () => {
-    const { data: m } = await supabase.from("matches").select("*").eq("id", id).single();
+    const { data: m } = await supabase.from("matches_public").select("*").eq("id", id).single();
     setMatch(m);
     const { data: mp } = await supabase.from("match_players").select("user_id, profiles(name)").eq("match_id", id);
     setPlayers(mp || []);
+    if (m?.completed) {
+      const { data: r } = await supabase.from("match_results").select("*, profiles(name)").eq("match_id", id).order("prize", { ascending: false });
+      setResults(r || []);
+    }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -60,7 +53,7 @@ export default function MatchDetail() {
   const joined = players.some((p) => p.user_id === session?.user?.id);
   const spotsLeft = match.max_players - players.length;
   const fillPct = Math.min(100, Math.round((players.length / match.max_players) * 100));
-  const roomUnlockable = match.start_time && Date.now() >= new Date(match.start_time).getTime() - 15 * 60 * 1000;
+  const roomUnlockable = roomIsUnlockable(match);
 
   return (
     <div>
@@ -146,7 +139,29 @@ export default function MatchDetail() {
         </div>
       )}
 
-      <div style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 14, padding: 16 }}>
+      {match.completed && results.length > 0 && (
+        <div style={{ background: bg1, border: `0.5px solid ${green}55`, borderRadius: 14, padding: 16, marginTop: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: `${green}22`, display: "flex", alignItems: "center", justifyContent: "center" }}><Trophy size={16} color={green} /></div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: textPrimary, margin: 0 }}>Final Results</p>
+              <p style={{ fontSize: 11, color: textSecondary, margin: 0 }}>Prizes have been credited to wallets</p>
+            </div>
+          </div>
+          {results.map((r) => (
+            <div key={r.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderTop: `0.5px solid ${border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {r.winner && <Trophy size={13} color={amber} />}
+                <span style={{ fontSize: 13, color: textPrimary, fontWeight: 600 }}>{r.profiles?.name || "Player"}</span>
+                <span style={{ fontSize: 11, color: textMuted, display: "flex", alignItems: "center", gap: 3 }}><Target size={11} />{r.kills}</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: r.prize > 0 ? green : textMuted }}>{r.prize > 0 ? money(r.prize) : "—"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 14, padding: 16, marginTop: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: players.length ? 12 : 0 }}>
           <div style={{ width: 34, height: 34, borderRadius: "50%", background: `${purple}22`, display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={16} color={purple} /></div>
           <div>

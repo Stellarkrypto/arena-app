@@ -82,7 +82,7 @@ export default function Home() {
   const load = useCallback(async () => {
     const { data: b } = await supabase.from("banners").select("*").order("created_at", { ascending: false });
     setBanners(b || []);
-    const { data: m } = await supabase.from("matches").select("*").order("start_time", { ascending: true });
+    const { data: m } = await supabase.from("matches_public").select("*").order("start_time", { ascending: true });
     setMatches(m || []);
     const { data: mp } = await supabase.from("match_players").select("match_id, user_id");
     const c = {};

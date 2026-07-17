@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
 import { bg0, bg1, border, textPrimary, textSecondary, textMuted, amber, green, purple, purpleDeep, money, tagFor } from "../theme";
@@ -14,7 +14,20 @@ function StatBox({ label, value, color }) {
 
 export default function MatchCard({ m, joined, playerCount, showJoin, onJoin }) {
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
   const isPast = m.start_time && new Date(m.start_time).getTime() < Date.now();
+  const fillPct = Math.min(100, Math.round((playerCount / m.max_players) * 100));
+
+  const handleJoin = async (e) => {
+    e.stopPropagation();
+    if (submitting || joined) return;
+    setSubmitting(true);
+    try {
+      await onJoin(m);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -39,19 +52,26 @@ export default function MatchCard({ m, joined, playerCount, showJoin, onJoin }) 
         ))}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+      <div style={{ marginTop: 10 }}>
+        <div style={{ height: 4, background: bg0, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${fillPct}%`, background: fillPct >= 90 ? "#e2504a" : purple, borderRadius: 4, transition: "width 0.3s" }} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
         <span style={{ fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
-          <Users size={12} />{playerCount}/{m.max_players}
+          <Users size={12} />{playerCount}/{m.max_players} slots filled
         </span>
         {showJoin ? (
           joined ? (
             <span style={{ fontSize: 11, padding: "5px 12px", background: `${green}22`, color: green, borderRadius: 20, fontWeight: 500 }}>registered</span>
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); onJoin && onJoin(m); }}
-              style={{ background: `linear-gradient(135deg, ${purple}, ${purpleDeep})`, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              onClick={handleJoin}
+              disabled={submitting}
+              style={{ background: `linear-gradient(135deg, ${purple}, ${purpleDeep})`, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: submitting ? "default" : "pointer", opacity: submitting ? 0.6 : 1 }}
             >
-              Join
+              {submitting ? "Joining…" : "Join"}
             </button>
           )
         ) : (

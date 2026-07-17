@@ -3,6 +3,7 @@ import { Calendar, Clock, Lock } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../AuthContext";
 import MatchCard from "../components/MatchCard";
+import { useCountdown, roomIsUnlockable } from "../useCountdown";
 import { bg0, bg1, bg2, border, purple, textPrimary, textSecondary, textMuted } from "../theme";
 
 function EmptyState({ icon: Icon, text }) {
@@ -27,7 +28,7 @@ export default function MyMatches() {
     const { data: mp } = await supabase.from("match_players").select("match_id").eq("user_id", session.user.id);
     const ids = (mp || []).map((r) => r.match_id);
     if (ids.length === 0) { setMatches([]); return; }
-    const { data: m } = await supabase.from("matches").select("*").in("id", ids);
+    const { data: m } = await supabase.from("matches_public").select("*").in("id", ids);
     setMatches(m || []);
     const { data: allMp } = await supabase.from("match_players").select("match_id").in("match_id", ids);
     const c = {};
@@ -54,23 +55,41 @@ export default function MyMatches() {
         <EmptyState icon={sub === "upcoming" ? Calendar : Clock} text={`No ${sub} matches found.`} />
       ) : (
         filtered.map((m) => {
-          const showRoom = m.start_time && now >= new Date(m.start_time).getTime() - 15 * 60 * 1000 && now < new Date(m.start_time).getTime() + 3 * 3600000;
+          const showRoom = roomIsUnlockable(m);
           return (
             <div key={m.id} style={{ marginBottom: 10 }}>
               <MatchCard m={m} joined playerCount={counts[m.id] || 0} showJoin={false} />
+              {sub === "upcoming" && <CountdownBadge target={m.start_time} />}
               {sub === "upcoming" && (
                 showRoom ? (
-                  <div style={{ marginTop: -4, background: bg0, borderRadius: 10, padding: 10, fontSize: 12, border: `0.5px solid ${border}` }}>
+                  <div style={{ marginTop: 8, background: bg0, borderRadius: 10, padding: 10, fontSize: 12, border: `0.5px solid ${border}` }}>
                     <p style={{ margin: 0, color: textSecondary }}>Room ID: <span style={{ color: textPrimary }}>{m.room_id || "not set yet"}</span></p>
                     <p style={{ margin: 0, marginTop: 3, color: textSecondary }}>Password: <span style={{ color: textPrimary }}>{m.room_pass || "not set yet"}</span></p>
                   </div>
                 ) : (
-                  <p style={{ fontSize: 11, color: textMuted, marginTop: -2, display: "flex", alignItems: "center", gap: 4 }}><Lock size={11} /> unlocks 15 min before start</p>
+                  <p style={{ fontSize: 11, color: textMuted, marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}><Lock size={11} /> room details not revealed yet</p>
                 )
               )}
             </div>
           );
         })
+      )}
+    </div>
+  );
+}
+
+function CountdownBadge({ target }) {
+  const cd = useCountdown(target);
+  if (!cd) return null;
+  return (
+    <div style={{ marginTop: -4, marginBottom: 8, background: cd.started ? "#2ecc9a22" : bg1, border: `0.5px solid ${cd.started ? "#2ecc9a" : border}`, borderRadius: 8, padding: "7px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ width: 6, height: 6, borderRadius: "50%", background: cd.started ? "#2ecc9a" : purple }} />
+      {cd.started ? (
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#2ecc9a" }}>Match has started</span>
+      ) : (
+        <span style={{ fontSize: 11, fontWeight: 600, color: textPrimary }}>
+          STARTS IN {String(cd.h).padStart(2, "0")}h : {String(cd.m).padStart(2, "0")}m : {String(cd.s).padStart(2, "0")}s
+        </span>
       )}
     </div>
   );

@@ -73,7 +73,7 @@ export default function Admin() {
 
 function MatchesPage({ showToast }) {
   const [matches, setMatches] = useState([]);
-  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, start_time: "", squad: "SQUAD", map: "BERMUDA", perspective: "TPP" });
+  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, start_time: "", squad: "Squad", map: "BERMUDA", perspective: "TPP", room_reveal_time: "" });
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("matches").select("*, match_players(count)").order("created_at", { ascending: false });
@@ -83,13 +83,24 @@ function MatchesPage({ showToast }) {
 
   const createMatch = async () => {
     if (!form.name.trim()) return showToast("Give the match a name");
-    const { error } = await supabase.from("matches").insert({ ...form, name: form.name.trim(), start_time: form.start_time ? new Date(form.start_time).toISOString() : null });
+    const payload = {
+      ...form,
+      name: form.name.trim(),
+      start_time: form.start_time ? new Date(form.start_time).toISOString() : null,
+      room_reveal_time: form.room_reveal_time ? new Date(form.room_reveal_time).toISOString() : null,
+    };
+    const { error } = await supabase.from("matches").insert(payload);
     if (error) return showToast(error.message);
     setForm({ ...form, name: "" });
     showToast("Match created");
     load();
   };
   const updateRoom = async (id, field, value) => { await supabase.from("matches").update({ [field]: value }).eq("id", id); };
+  const updateRevealTime = async (id, value) => {
+    await supabase.from("matches").update({ room_reveal_time: value ? new Date(value).toISOString() : null }).eq("id", id);
+    showToast("Reveal time updated");
+    load();
+  };
   const removeMatch = async (id) => { await supabase.from("matches").delete().eq("id", id); showToast("Match deleted"); load(); };
 
   return (
@@ -103,12 +114,21 @@ function MatchesPage({ showToast }) {
         <Field label="Entry fee"><input style={inputStyle} type="number" value={form.entry_fee} onChange={(e) => setForm({ ...form, entry_fee: e.target.value })} /></Field>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <Field label="Squad"><input style={inputStyle} value={form.squad} onChange={(e) => setForm({ ...form, squad: e.target.value })} /></Field>
+        <Field label="Team size">
+          <select style={inputStyle} value={form.squad} onChange={(e) => setForm({ ...form, squad: e.target.value })}>
+            <option>Solo</option>
+            <option>Duo</option>
+            <option>Squad</option>
+          </select>
+        </Field>
         <Field label="Map"><input style={inputStyle} value={form.map} onChange={(e) => setForm({ ...form, map: e.target.value })} /></Field>
         <Field label="View"><input style={inputStyle} value={form.perspective} onChange={(e) => setForm({ ...form, perspective: e.target.value })} /></Field>
       </div>
       <Field label="Max players"><input style={inputStyle} type="number" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: e.target.value })} /></Field>
       <Field label="Start time"><input style={inputStyle} type="datetime-local" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></Field>
+      <Field label="Room reveal time (optional — leave blank to auto-reveal 15 min before start)">
+        <input style={inputStyle} type="datetime-local" value={form.room_reveal_time} onChange={(e) => setForm({ ...form, room_reveal_time: e.target.value })} />
+      </Field>
       <button onClick={createMatch} style={{ ...btnPrimary, width: "100%", marginBottom: 24 }}>Create match</button>
 
       <SectionLabel>All matches</SectionLabel>
@@ -117,13 +137,22 @@ function MatchesPage({ showToast }) {
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
-              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>{tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined</p>
+              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>{tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.squad} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined</p>
             </div>
             <button onClick={() => removeMatch(m.id)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={red} /></button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
             <input style={inputStyle} placeholder="Room ID" defaultValue={m.room_id} onBlur={(e) => updateRoom(m.id, "room_id", e.target.value)} />
             <input style={inputStyle} placeholder="Room password" defaultValue={m.room_pass} onBlur={(e) => updateRoom(m.id, "room_pass", e.target.value)} />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <label style={{ fontSize: 10, color: textSecondary }}>Room reveal time</label>
+            <input
+              style={inputStyle}
+              type="datetime-local"
+              defaultValue={m.room_reveal_time ? new Date(m.room_reveal_time).toISOString().slice(0, 16) : ""}
+              onBlur={(e) => updateRevealTime(m.id, e.target.value)}
+            />
           </div>
         </div>
       ))}

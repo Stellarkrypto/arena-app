@@ -15,7 +15,7 @@ export default function Result() {
   const [myMatchIds, setMyMatchIds] = useState(new Set());
 
   const load = useCallback(async () => {
-    const { data: m } = await supabase.from("matches").select("*").eq("mode", resultMode).order("start_time", { ascending: false });
+    const { data: m } = await supabase.from("matches_public").select("*").eq("mode", resultMode).order("start_time", { ascending: false });
     setMatches(m || []);
     const ids = (m || []).map((x) => x.id);
     if (ids.length) {
