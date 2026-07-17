@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = loading, null = signed out
   const [profile, setProfile] = useState(null);
   const [balance, setBalance] = useState(0);
+  const [authError, setAuthError] = useState(null);
 
   const loadProfile = useCallback(async (userId) => {
     const { data: p } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -16,7 +17,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) { setAuthError(error.message); setSession(null); return; }
+        setSession(data.session ?? null);
+      })
+      .catch((err) => { setAuthError(String(err)); setSession(null); });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -41,7 +47,7 @@ export function AuthProvider({ children }) {
   const signOut = () => supabase.auth.signOut();
 
   return (
-    <AuthCtx.Provider value={{ session, profile, balance, refresh, signUp, signIn, signOut }}>
+    <AuthCtx.Provider value={{ session, profile, balance, refresh, signUp, signIn, signOut, authError }}>
       {children}
     </AuthCtx.Provider>
   );
