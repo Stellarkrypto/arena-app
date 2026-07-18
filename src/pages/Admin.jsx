@@ -71,9 +71,18 @@ export default function Admin() {
   );
 }
 
+const FF_MAPS = ["Bermuda", "Purgatory", "Kalahari", "Alpine", "NEXTERRA"];
+const DURATIONS = [
+  { label: "10 minutes", value: 10 },
+  { label: "20 minutes", value: 20 },
+  { label: "30 minutes", value: 30 },
+  { label: "1 hour", value: 60 },
+];
+
 function MatchesPage({ showToast }) {
+  const [subTab, setSubTab] = useState("create"); // "create" | "manage"
   const [matches, setMatches] = useState([]);
-  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, squad: "Squad", map: "BERMUDA", perspective: "TPP" });
+  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, squad: "Squad", map: FF_MAPS[0], perspective: "TPP", duration: 30 });
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("matches").select("*, match_players(count)").order("created_at", { ascending: false });
@@ -83,64 +92,113 @@ function MatchesPage({ showToast }) {
 
   const createMatch = async () => {
     if (!form.name.trim()) return showToast("Give the match a name");
-    const { error } = await supabase.from("matches").insert({ ...form, name: form.name.trim() });
+    const { duration, ...rest } = form;
+    const start_time = new Date(Date.now() + duration * 60 * 1000).toISOString();
+    const { error } = await supabase.from("matches").insert({ ...rest, name: form.name.trim(), start_time });
     if (error) return showToast(error.message);
     setForm({ ...form, name: "" });
-    showToast("Match created — starts automatically in 30 minutes");
+    showToast(`Match created — starts in ${duration} minutes`);
+    setSubTab("manage");
     load();
   };
-  const updateRoom = async (id, field, value) => { await supabase.from("matches").update({ [field]: value }).eq("id", id); showToast("Saved — visible to joined players instantly"); };
   const removeMatch = async (id) => { await supabase.from("matches").delete().eq("id", id); showToast("Match deleted"); load(); };
 
   return (
     <div>
-      <SectionLabel>Create match</SectionLabel>
-      <p style={{ fontSize: 11, color: textMuted, marginTop: -8, marginBottom: 14 }}>
-        Starts automatically 30 minutes after you create it. Registration closes 3 minutes before start.
-      </p>
-      <Field label="Mode"><select style={inputStyle} value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>{MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select></Field>
-      <Field label="Name"><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Squad Time | Mobile | Regular" /></Field>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <Field label="Win prize"><input style={inputStyle} type="number" value={form.win_prize} onChange={(e) => setForm({ ...form, win_prize: e.target.value })} /></Field>
-        <Field label="Per kill"><input style={inputStyle} type="number" value={form.per_kill} onChange={(e) => setForm({ ...form, per_kill: e.target.value })} /></Field>
-        <Field label="Entry fee"><input style={inputStyle} type="number" value={form.entry_fee} onChange={(e) => setForm({ ...form, entry_fee: e.target.value })} /></Field>
+      <div style={{ display: "flex", background: bg1, borderRadius: 12, padding: 3, marginBottom: 18 }}>
+        {[{ id: "create", label: "Create" }, { id: "manage", label: `Manage (${matches.length})` }].map((t) => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{
+            flex: 1, padding: "9px 0", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
+            background: subTab === t.id ? purple : "transparent", color: subTab === t.id ? "#fff" : textSecondary,
+          }}>
+            {t.label}
+          </button>
+        ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <Field label="Team size">
-          <select style={inputStyle} value={form.squad} onChange={(e) => setForm({ ...form, squad: e.target.value })}>
-            <option>Solo</option>
-            <option>Duo</option>
-            <option>Squad</option>
-          </select>
-        </Field>
-        <Field label="Map"><input style={inputStyle} value={form.map} onChange={(e) => setForm({ ...form, map: e.target.value })} /></Field>
-        <Field label="View"><input style={inputStyle} value={form.perspective} onChange={(e) => setForm({ ...form, perspective: e.target.value })} /></Field>
-      </div>
-      <Field label="Max players"><input style={inputStyle} type="number" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: e.target.value })} /></Field>
-      <button onClick={createMatch} style={{ ...btnPrimary, width: "100%", marginBottom: 24 }}>Create match</button>
 
-      <SectionLabel>All matches</SectionLabel>
-      {matches.map((m) => (
-        <div key={m.id} style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
-              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>
-                {tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.squad} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined
-              </p>
-              <p style={{ fontSize: 11, color: amber, margin: "3px 0 0" }}>
-                starts {m.start_time ? new Date(m.start_time).toLocaleTimeString() : "—"}
-              </p>
-            </div>
-            <button onClick={() => removeMatch(m.id)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={red} /></button>
+      {subTab === "create" ? (
+        <div>
+          <Field label="Mode"><select style={inputStyle} value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>{MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select></Field>
+          <Field label="Name"><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Squad Time | Mobile | Regular" /></Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <Field label="Win prize"><input style={inputStyle} type="number" value={form.win_prize} onChange={(e) => setForm({ ...form, win_prize: e.target.value })} /></Field>
+            <Field label="Per kill"><input style={inputStyle} type="number" value={form.per_kill} onChange={(e) => setForm({ ...form, per_kill: e.target.value })} /></Field>
+            <Field label="Entry fee"><input style={inputStyle} type="number" value={form.entry_fee} onChange={(e) => setForm({ ...form, entry_fee: e.target.value })} /></Field>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-            <input style={inputStyle} placeholder="Room ID" defaultValue={m.room_id} onBlur={(e) => updateRoom(m.id, "room_id", e.target.value)} />
-            <input style={inputStyle} placeholder="Room password" defaultValue={m.room_pass} onBlur={(e) => updateRoom(m.id, "room_pass", e.target.value)} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <Field label="Team size">
+              <select style={inputStyle} value={form.squad} onChange={(e) => setForm({ ...form, squad: e.target.value })}>
+                <option>Solo</option><option>Duo</option><option>Squad</option>
+              </select>
+            </Field>
+            <Field label="Map">
+              <select style={inputStyle} value={form.map} onChange={(e) => setForm({ ...form, map: e.target.value })}>
+                {FF_MAPS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
+            <Field label="View"><input style={inputStyle} value={form.perspective} onChange={(e) => setForm({ ...form, perspective: e.target.value })} /></Field>
           </div>
-          <p style={{ fontSize: 10, color: textMuted, marginTop: 6 }}>Enter this any time — joined players see it the instant you save it.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <Field label="Max players"><input style={inputStyle} type="number" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: e.target.value })} /></Field>
+            <Field label="Starts in">
+              <select style={inputStyle} value={form.duration} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })}>
+                {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
+            </Field>
+          </div>
+          <p style={{ fontSize: 11, color: textMuted, margin: "-4px 0 14px" }}>Registration locks 3 minutes before start, whichever duration you pick.</p>
+          <button onClick={createMatch} style={{ ...btnPrimary, width: "100%" }}>Create match</button>
         </div>
-      ))}
+      ) : (
+        <div>
+          {matches.length === 0 && <p style={{ fontSize: 13, color: textMuted }}>No matches created yet.</p>}
+          {matches.map((m) => <ManageMatchCard key={m.id} m={m} onDelete={() => removeMatch(m.id)} showToast={showToast} reload={load} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManageMatchCard({ m, onDelete, showToast, reload }) {
+  const [roomId, setRoomId] = useState(m.room_id || "");
+  const [roomPass, setRoomPass] = useState(m.room_pass || "");
+  const [saving, setSaving] = useState(false);
+  const dirty = roomId !== (m.room_id || "") || roomPass !== (m.room_pass || "");
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("matches").update({ room_id: roomId, room_pass: roomPass }).eq("id", m.id);
+    setSaving(false);
+    if (error) return showToast(error.message);
+    showToast("Saved — visible to joined players instantly");
+    reload();
+  };
+
+  return (
+    <div style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
+          <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>
+            {tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.squad} · {m.map} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined
+          </p>
+          <p style={{ fontSize: 11, color: amber, margin: "3px 0 0" }}>
+            starts {m.start_time ? new Date(m.start_time).toLocaleString() : "—"}
+          </p>
+        </div>
+        <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={red} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+        <input style={inputStyle} placeholder="Room ID" value={roomId} onChange={(e) => setRoomId(e.target.value)} />
+        <input style={inputStyle} placeholder="Room password" value={roomPass} onChange={(e) => setRoomPass(e.target.value)} />
+      </div>
+      <button
+        onClick={save}
+        disabled={!dirty || saving}
+        style={{ width: "100%", marginTop: 8, background: dirty ? green : bg0, color: dirty ? bg0 : textMuted, border: `0.5px solid ${dirty ? green : border}`, borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: dirty ? "pointer" : "default" }}
+      >
+        {saving ? "Saving…" : dirty ? "Save room details" : "Saved"}
+      </button>
     </div>
   );
 }
