@@ -9,7 +9,15 @@ export function useCountdown(target) {
   }, [target]);
   if (!target) return null;
   const diff = new Date(target).getTime() - now;
-  if (diff <= 0) return { started: true, h: 0, m: 0, s: 0 };
+  if (diff <= 0) {
+    const elapsed = now - new Date(target).getTime();
+    return {
+      started: true,
+      h: Math.floor(elapsed / 3600000),
+      m: Math.floor((elapsed % 3600000) / 60000),
+      s: Math.floor((elapsed % 60000) / 1000),
+    };
+  }
   return {
     started: false,
     h: Math.floor(diff / 3600000),

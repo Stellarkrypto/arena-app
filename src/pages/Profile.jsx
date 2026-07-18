@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Plus, ArrowDownToLine, Receipt, FileEdit, Star, LogOut, Trophy, Copy, ChevronLeft, X } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../AuthContext";
-import { bg0, bg1, bg2, border, purple, purpleDeep, pink, green, red, textPrimary, textSecondary, textMuted, money, inputStyle, btnPrimary, Field, SectionLabel } from "../theme";
+import { bg0, bg1, bg2, border, purple, purpleDeep, pink, green, red, textPrimary, textSecondary, textMuted, money, inputStyle, btnPrimary, Field, SectionLabel, cardShadow } from "../theme";
 
 export default function Profile() {
   const { session, profile, balance, refresh, signOut, authError } = useAuth();
@@ -122,17 +122,46 @@ export default function Profile() {
         </div>
       </div>
 
-      <div style={{ background: `linear-gradient(135deg, ${bg2}, ${bg1})`, border: `0.5px solid ${border}`, borderRadius: 16, padding: 18, marginBottom: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <p style={{ fontSize: 10, color: textMuted, letterSpacing: "0.06em", margin: 0, textTransform: "uppercase" }}>Total balance</p>
-            <p style={{ fontSize: 26, fontWeight: 700, color: textPrimary, margin: "4px 0 0" }}>{money(balance)}</p>
+      <div style={{
+        background: `linear-gradient(135deg, ${bg2} 0%, ${bg1} 60%, ${purple}22 100%)`,
+        border: `0.5px solid ${border}`, borderRadius: 18, padding: "20px 20px 18px", marginBottom: 14,
+        boxShadow: cardShadow, position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: `${purple}14` }} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
+          <div style={{ width: 34, height: 26, borderRadius: 6, background: "linear-gradient(135deg, #e8c568, #b8912f)", position: "relative" }}>
+            <div style={{ position: "absolute", top: "50%", left: 4, right: 4, height: 1, background: "#00000033" }} />
+            <div style={{ position: "absolute", left: "50%", top: 4, bottom: 4, width: 1, background: "#00000033" }} />
           </div>
-          <button onClick={() => setModal("deposit")} style={{ width: 34, height: 34, borderRadius: "50%", background: green, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={() => setModal("deposit")} style={{ width: 34, height: 34, borderRadius: "50%", background: green, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 12px ${green}55` }}>
             <Plus size={18} color={bg0} />
           </button>
         </div>
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
+
+        <p style={{ fontSize: 10, color: textMuted, letterSpacing: "0.08em", margin: "16px 0 0", textTransform: "uppercase" }}>Total balance</p>
+        <p style={{ fontSize: 30, fontWeight: 700, color: textPrimary, margin: "4px 0 0", letterSpacing: "0.02em" }}>{money(balance)}</p>
+
+        <div style={{ display: "flex", gap: 28, marginTop: 16 }}>
+          <div>
+            <p style={{ fontSize: 9, color: textMuted, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Deposited</p>
+            <p style={{ fontSize: 13, color: textPrimary, margin: "2px 0 0", fontWeight: 600 }}>{money(profile.deposited || 0)}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 9, color: textMuted, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Winnings</p>
+            <p style={{ fontSize: 13, color: green, margin: "2px 0 0", fontWeight: 600 }}>{money(profile.winnings || 0)}</p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `0.5px solid ${border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <p style={{ fontSize: 9, color: textMuted, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Card holder</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: textPrimary, margin: "3px 0 0", textTransform: "uppercase", letterSpacing: "0.03em" }}>{profile.name || "Player"}</p>
+          </div>
+          <p style={{ fontSize: 13, fontWeight: 800, fontStyle: "italic", color: `${purple}cc`, margin: 0, letterSpacing: "0.02em" }}>Arena</p>
+        </div>
+
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `0.5px solid ${border}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: textMuted }}>
             <span>Daily limit used</span><span>{money(profile.daily_spent)} / {money(profile.daily_limit)}</span>
           </div>
@@ -157,7 +186,7 @@ export default function Profile() {
 
 function MenuRow({ icon, iconBg, title, subtitle, onClick }) {
   return (
-    <button onClick={onClick} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer", textAlign: "left" }}>
+    <button onClick={onClick} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(0,0,0,0.22)" }}>
       <div style={{ width: 38, height: 38, borderRadius: 10, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
       <div><p style={{ fontSize: 13, fontWeight: 600, color: textPrimary, margin: 0 }}>{title}</p><p style={{ fontSize: 11, color: textSecondary, margin: "2px 0 0" }}>{subtitle}</p></div>
     </button>

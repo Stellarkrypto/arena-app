@@ -4,7 +4,7 @@ import { ChevronLeft, Calendar, Megaphone, Waves, Swords, Target, Users2 } from 
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../AuthContext";
 import MatchCard from "../components/MatchCard";
-import { bg1, border, purple, purpleDeep, pink, textPrimary, textSecondary, textMuted, MODES } from "../theme";
+import { bg0, bg1, border, purple, purpleDeep, pink, textPrimary, textSecondary, textMuted, MODES } from "../theme";
 
 const MODE_ICON = { br: Waves, clash: Swords, lonewolf: Target, cs1v1: Users2 };
 const MODE_GRAD = {
@@ -107,12 +107,26 @@ export default function Home() {
 
   if (mode) {
     const list = matches.filter((m) => m.mode === mode);
+    const modeInfo = MODES.find((x) => x.key === mode);
+    const Icon = MODE_ICON[mode] || Waves;
+    const grad = MODE_GRAD[mode] || MODE_GRAD.br;
     return (
       <div>
         {toast && <Toast msg={toast} />}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <button onClick={() => setMode(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><ChevronLeft size={20} color={textPrimary} /></button>
-          <p style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: 0 }}>{MODES.find((x) => x.key === mode)?.label}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+          <button onClick={() => setMode(null)} style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: "50%", width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <ChevronLeft size={18} color={textPrimary} />
+          </button>
+          <div style={{ width: 42, height: 42, borderRadius: 10, background: `linear-gradient(135deg, ${grad[0]}, ${grad[1]})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon size={20} color="#ffffffdd" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 10, color: textMuted, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>Mode</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: textPrimary, margin: "2px 0 0" }}>{modeInfo?.label}</p>
+          </div>
+          <button onClick={() => showToast("Standard Free Fire competitive rules apply — fair play, no emulators, no teaming.")} style={{ background: textPrimary, color: bg0, border: "none", borderRadius: 20, padding: "8px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+            Game Rules
+          </button>
         </div>
         {list.length === 0 && <EmptyState text="No matches found." />}
         {list.map((m) => (

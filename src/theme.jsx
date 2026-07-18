@@ -12,6 +12,9 @@ export const textPrimary = "#f2f3fb";
 export const textSecondary = "#9498b8";
 export const textMuted = "#5f6489";
 
+export const cardShadow = "0 6px 20px rgba(0,0,0,0.35)";
+export const cardShadowSm = "0 3px 10px rgba(0,0,0,0.28)";
+
 export const money = (n) => `৳${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 export const tagFor = (id) => `#${(id || "").replace(/-/g, "").slice(0, 5).toUpperCase()}`;
 

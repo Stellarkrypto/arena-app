@@ -67,15 +67,16 @@ export default function MatchDetail() {
         <p style={{ fontSize: 12, color: amber, margin: "4px 0 0" }}>{match.start_time ? new Date(match.start_time).toLocaleString() : "time not set"}</p>
 
         {cd && (
-          <div style={{ marginTop: 14, background: cd.started ? `${green}22` : bg0, border: `0.5px solid ${cd.started ? green : border}`, borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: cd.started ? green : purple }} />
+          <div style={{ marginTop: 14, background: cd.started ? `${red}22` : `${green}22`, border: `0.5px solid ${cd.started ? red : green}`, borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
             {cd.started ? (
-              <span style={{ fontSize: 12, fontWeight: 600, color: green }}>Match has started</span>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: red, animation: "pulseDot 1.2s infinite" }} />
             ) : (
-              <span style={{ fontSize: 12, fontWeight: 600, color: textPrimary }}>
-                STARTS IN {String(cd.h).padStart(2, "0")}h : {String(cd.m).padStart(2, "0")}m : {String(cd.s).padStart(2, "0")}s
-              </span>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: green }} />
             )}
+            <span style={{ fontSize: 12, fontWeight: 700, color: cd.started ? red : green, letterSpacing: "0.03em" }}>
+              {cd.started ? "STARTED" : "STARTS IN"} {String(cd.h).padStart(2, "0")}h : {String(cd.m).padStart(2, "0")}m : {String(cd.s).padStart(2, "0")}s
+            </span>
+            <style>{`@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
           </div>
         )}
       </div>
@@ -104,7 +105,11 @@ export default function MatchDetail() {
             <button
               onClick={join}
               disabled={spotsLeft <= 0 || regClosed}
-              style={{ background: spotsLeft > 0 && !regClosed ? green : textMuted, color: bg0, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: spotsLeft > 0 && !regClosed ? "pointer" : "not-allowed" }}
+              style={{
+                background: spotsLeft > 0 && !regClosed ? green : textMuted, color: bg0, border: "none", borderRadius: 8,
+                padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: spotsLeft > 0 && !regClosed ? "pointer" : "not-allowed",
+                boxShadow: spotsLeft > 0 && !regClosed ? `0 0 14px ${green}66` : "none",
+              }}
             >
               JOIN NOW
             </button>
