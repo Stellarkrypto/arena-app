@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Lock, Trophy, Users, Target } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../AuthContext";
-import { useCountdown, roomIsUnlockable } from "../useCountdown";
+import { useCountdown, roomIsUnlockable, registrationClosed } from "../useCountdown";
 import { bg0, bg1, bg2, border, purple, green, amber, red, textPrimary, textSecondary, textMuted, money, tagFor } from "../theme";
 
 export default function MatchDetail() {
@@ -54,6 +54,7 @@ export default function MatchDetail() {
   const spotsLeft = match.max_players - players.length;
   const fillPct = Math.min(100, Math.round((players.length / match.max_players) * 100));
   const roomUnlockable = roomIsUnlockable(match);
+  const regClosed = registrationClosed(match);
 
   return (
     <div>
@@ -97,11 +98,18 @@ export default function MatchDetail() {
             <div style={{ height: "100%", width: `${fillPct}%`, background: `linear-gradient(90deg, ${amber}, ${red})`, borderRadius: 4 }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: textSecondary }}>{spotsLeft > 0 ? `Only ${spotsLeft} spots left` : "Full"} · {players.length}/{match.max_players}</span>
-            <button onClick={join} disabled={spotsLeft <= 0} style={{ background: spotsLeft > 0 ? green : textMuted, color: bg0, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: spotsLeft > 0 ? "pointer" : "not-allowed" }}>
+            <span style={{ fontSize: 12, color: textSecondary }}>
+              {regClosed ? "Registration closed" : spotsLeft > 0 ? `Only ${spotsLeft} spots left` : "Full"} · {players.length}/{match.max_players}
+            </span>
+            <button
+              onClick={join}
+              disabled={spotsLeft <= 0 || regClosed}
+              style={{ background: spotsLeft > 0 && !regClosed ? green : textMuted, color: bg0, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: spotsLeft > 0 && !regClosed ? "pointer" : "not-allowed" }}
+            >
               JOIN NOW
             </button>
           </div>
+          {regClosed && <p style={{ fontSize: 11, color: amber, marginTop: 6 }}>Registration locks 3 minutes before start — match is starting soon.</p>}
         </div>
       ) : (
         <div style={{ marginBottom: 16, textAlign: "center", background: `${green}18`, border: `0.5px solid ${green}55`, borderRadius: 10, padding: 10 }}>
@@ -128,7 +136,7 @@ export default function MatchDetail() {
               <p style={{ fontSize: 12, color: textSecondary, margin: "6px 0 0" }}>Password: <span style={{ color: textPrimary, fontWeight: 600 }}>{match.room_pass || "not set yet"}</span></p>
             </div>
           ) : (
-            <p style={{ fontSize: 12, color: textMuted, margin: 0, display: "flex", alignItems: "center", gap: 6 }}><Lock size={12} />Unlocks 15 minutes before start.</p>
+            <p style={{ fontSize: 12, color: textMuted, margin: 0, display: "flex", alignItems: "center", gap: 6 }}><Lock size={12} />Not set yet — appears here the instant the admin adds it.</p>
           )}
         </div>
       )}

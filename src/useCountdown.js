@@ -18,12 +18,17 @@ export function useCountdown(target) {
   };
 }
 
-// Whether room details should be visible right now for a given match.
-// Uses the admin's explicit room_reveal_time if set, otherwise falls back
-// to the default "15 minutes before start" rule.
+// Room ID/password visibility is now enforced by the database itself
+// (see matches_public view): the browser only ever receives a non-null
+// room_id/room_pass if the current user has joined AND the admin has set
+// it. So on the client, "unlockable" just means "is it actually present."
 export function roomIsUnlockable(match) {
-  const now = Date.now();
-  if (match.room_reveal_time) return now >= new Date(match.room_reveal_time).getTime();
-  if (!match.start_time) return false;
-  return now >= new Date(match.start_time).getTime() - 15 * 60 * 1000;
+  return Boolean(match?.room_id);
+}
+
+// Registration closes 3 minutes before the match's automatic start time.
+// The server enforces this too (join_match RPC) — this is just for the UI.
+export function registrationClosed(match) {
+  if (!match?.start_time) return false;
+  return Date.now() >= new Date(match.start_time).getTime() - 3 * 60 * 1000;
 }

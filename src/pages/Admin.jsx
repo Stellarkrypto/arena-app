@@ -73,7 +73,7 @@ export default function Admin() {
 
 function MatchesPage({ showToast }) {
   const [matches, setMatches] = useState([]);
-  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, start_time: "", squad: "Squad", map: "BERMUDA", perspective: "TPP", room_reveal_time: "" });
+  const [form, setForm] = useState({ mode: "br", name: "", win_prize: 450, per_kill: 5, entry_fee: 10, max_players: 48, squad: "Squad", map: "BERMUDA", perspective: "TPP" });
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("matches").select("*, match_players(count)").order("created_at", { ascending: false });
@@ -83,29 +83,21 @@ function MatchesPage({ showToast }) {
 
   const createMatch = async () => {
     if (!form.name.trim()) return showToast("Give the match a name");
-    const payload = {
-      ...form,
-      name: form.name.trim(),
-      start_time: form.start_time ? new Date(form.start_time).toISOString() : null,
-      room_reveal_time: form.room_reveal_time ? new Date(form.room_reveal_time).toISOString() : null,
-    };
-    const { error } = await supabase.from("matches").insert(payload);
+    const { error } = await supabase.from("matches").insert({ ...form, name: form.name.trim() });
     if (error) return showToast(error.message);
     setForm({ ...form, name: "" });
-    showToast("Match created");
+    showToast("Match created — starts automatically in 30 minutes");
     load();
   };
-  const updateRoom = async (id, field, value) => { await supabase.from("matches").update({ [field]: value }).eq("id", id); };
-  const updateRevealTime = async (id, value) => {
-    await supabase.from("matches").update({ room_reveal_time: value ? new Date(value).toISOString() : null }).eq("id", id);
-    showToast("Reveal time updated");
-    load();
-  };
+  const updateRoom = async (id, field, value) => { await supabase.from("matches").update({ [field]: value }).eq("id", id); showToast("Saved — visible to joined players instantly"); };
   const removeMatch = async (id) => { await supabase.from("matches").delete().eq("id", id); showToast("Match deleted"); load(); };
 
   return (
     <div>
       <SectionLabel>Create match</SectionLabel>
+      <p style={{ fontSize: 11, color: textMuted, marginTop: -8, marginBottom: 14 }}>
+        Starts automatically 30 minutes after you create it. Registration closes 3 minutes before start.
+      </p>
       <Field label="Mode"><select style={inputStyle} value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>{MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select></Field>
       <Field label="Name"><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Squad Time | Mobile | Regular" /></Field>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -125,10 +117,6 @@ function MatchesPage({ showToast }) {
         <Field label="View"><input style={inputStyle} value={form.perspective} onChange={(e) => setForm({ ...form, perspective: e.target.value })} /></Field>
       </div>
       <Field label="Max players"><input style={inputStyle} type="number" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: e.target.value })} /></Field>
-      <Field label="Start time"><input style={inputStyle} type="datetime-local" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></Field>
-      <Field label="Room reveal time (optional — leave blank to auto-reveal 15 min before start)">
-        <input style={inputStyle} type="datetime-local" value={form.room_reveal_time} onChange={(e) => setForm({ ...form, room_reveal_time: e.target.value })} />
-      </Field>
       <button onClick={createMatch} style={{ ...btnPrimary, width: "100%", marginBottom: 24 }}>Create match</button>
 
       <SectionLabel>All matches</SectionLabel>
@@ -137,7 +125,12 @@ function MatchesPage({ showToast }) {
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
-              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>{tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.squad} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined</p>
+              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>
+                {tagFor(m.id)} · {MODES.find((x) => x.key === m.mode)?.label} · {m.squad} · {m.match_players?.[0]?.count || 0}/{m.max_players} joined
+              </p>
+              <p style={{ fontSize: 11, color: amber, margin: "3px 0 0" }}>
+                starts {m.start_time ? new Date(m.start_time).toLocaleTimeString() : "—"}
+              </p>
             </div>
             <button onClick={() => removeMatch(m.id)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={red} /></button>
           </div>
@@ -145,15 +138,7 @@ function MatchesPage({ showToast }) {
             <input style={inputStyle} placeholder="Room ID" defaultValue={m.room_id} onBlur={(e) => updateRoom(m.id, "room_id", e.target.value)} />
             <input style={inputStyle} placeholder="Room password" defaultValue={m.room_pass} onBlur={(e) => updateRoom(m.id, "room_pass", e.target.value)} />
           </div>
-          <div style={{ marginTop: 8 }}>
-            <label style={{ fontSize: 10, color: textSecondary }}>Room reveal time</label>
-            <input
-              style={inputStyle}
-              type="datetime-local"
-              defaultValue={m.room_reveal_time ? new Date(m.room_reveal_time).toISOString().slice(0, 16) : ""}
-              onBlur={(e) => updateRevealTime(m.id, e.target.value)}
-            />
-          </div>
+          <p style={{ fontSize: 10, color: textMuted, marginTop: 6 }}>Enter this any time — joined players see it the instant you save it.</p>
         </div>
       ))}
     </div>
@@ -164,7 +149,9 @@ function ResultsPage({ showToast }) {
   const [matches, setMatches] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [openPlayers, setOpenPlayers] = useState([]);
+  const [openResults, setOpenResults] = useState([]);
   const [draft, setDraft] = useState({});
+  const [mode, setMode] = useState("enter"); // "enter" | "review"
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("matches").select("*").order("created_at", { ascending: false });
@@ -172,25 +159,45 @@ function ResultsPage({ showToast }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openMatch = async (m) => {
+  const openForEntry = async (m) => {
     const { data: mp } = await supabase.from("match_players").select("user_id, profiles(name, ff_uid)").eq("match_id", m.id);
     setOpenPlayers(mp || []);
     const init = {};
     (mp || []).forEach((p) => { init[p.user_id] = { kills: 0, winner: false }; });
     setDraft(init);
     setOpenId(m.id);
+    setMode("enter");
   };
 
-  const finalize = async (m) => {
+  const openForReview = async (m) => {
+    const { data: r } = await supabase.from("match_results").select("*, profiles(name, ff_uid)").eq("match_id", m.id).order("prize", { ascending: false });
+    setOpenResults(r || []);
+    setOpenId(m.id);
+    setMode("review");
+  };
+
+  const submitResults = async (m) => {
     const results = Object.entries(draft).map(([user_id, r]) => ({ user_id, kills: Number(r.kills || 0), winner: !!r.winner }));
-    const { error } = await supabase.rpc("finalize_match_results", { p_match_id: m.id, p_results: results });
+    const { error } = await supabase.rpc("submit_match_results", { p_match_id: m.id, p_results: results });
     if (error) return showToast(error.message);
-    showToast("Results finalized — players credited immediately");
+    showToast("Results submitted — review and approve to release payment");
     setOpenId(null);
     load();
   };
 
-  if (openId) {
+  const approveResults = async (m) => {
+    const { error } = await supabase.rpc("approve_match_results", { p_match_id: m.id });
+    if (error) return showToast(error.message);
+    showToast("Approved — prizes have been paid out");
+    setOpenId(null);
+    load();
+  };
+
+  const notSubmitted = matches.filter((m) => !m.results_submitted_at && !m.completed);
+  const awaitingApproval = matches.filter((m) => m.results_submitted_at && !m.completed);
+  const completedMatches = matches.filter((m) => m.completed);
+
+  if (openId && mode === "enter") {
     const m = matches.find((x) => x.id === openId);
     if (!m) return null;
     return (
@@ -199,6 +206,7 @@ function ResultsPage({ showToast }) {
           <button onClick={() => setOpenId(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><ChevronLeft size={20} color={textPrimary} /></button>
           <p style={{ fontSize: 15, fontWeight: 700, color: textPrimary, margin: 0 }}>{m.name}</p>
         </div>
+        <p style={{ fontSize: 11, color: textMuted, marginTop: -8, marginBottom: 14 }}>This just saves a draft — no money moves until you approve it on the next screen.</p>
         {openPlayers.length === 0 && <p style={{ fontSize: 13, color: textMuted }}>No players registered.</p>}
         {openPlayers.map((p) => (
           <div key={p.user_id} style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
@@ -215,26 +223,63 @@ function ResultsPage({ showToast }) {
             </div>
           </div>
         ))}
-        <button onClick={() => finalize(m)} style={{ ...btnPrimary, width: "100%", marginTop: 8 }}>Finalize results</button>
+        <button onClick={() => submitResults(m)} style={{ ...btnPrimary, width: "100%", marginTop: 8 }}>Submit for approval</button>
+      </div>
+    );
+  }
+
+  if (openId && mode === "review") {
+    const m = matches.find((x) => x.id === openId);
+    if (!m) return null;
+    const totalPayout = openResults.reduce((s, r) => s + Number(r.prize || 0), 0);
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <button onClick={() => setOpenId(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><ChevronLeft size={20} color={textPrimary} /></button>
+          <p style={{ fontSize: 15, fontWeight: 700, color: textPrimary, margin: 0 }}>{m.name}</p>
+        </div>
+        <p style={{ fontSize: 11, color: amber, marginTop: -8, marginBottom: 14 }}>Second confirmation — approving this pays out {money(totalPayout)} total, right now.</p>
+        {openResults.map((r) => (
+          <div key={r.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: bg1, border: `0.5px solid ${border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 8 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: textPrimary, margin: 0 }}>{r.profiles?.name} {r.winner && <span style={{ color: amber }}>★</span>}</p>
+              <p style={{ fontSize: 11, color: textMuted, margin: "2px 0 0" }}>UID {r.profiles?.ff_uid || "not set"} · {r.kills} kills</p>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: r.prize > 0 ? green : textMuted }}>{r.prize > 0 ? money(r.prize) : "—"}</span>
+          </div>
+        ))}
+        <button onClick={() => approveResults(m)} style={{ width: "100%", background: green, color: bg0, border: "none", borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
+          Approve & release {money(totalPayout)}
+        </button>
       </div>
     );
   }
 
   return (
     <div>
-      <SectionLabel>Matches awaiting results</SectionLabel>
-      {matches.filter((m) => !m.completed).length === 0 && <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Nothing pending.</p>}
-      {matches.filter((m) => !m.completed).map((m) => (
-        <button key={m.id} onClick={() => openMatch(m)} style={{ width: "100%", textAlign: "left", background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
+      <SectionLabel>Awaiting results entry</SectionLabel>
+      {notSubmitted.length === 0 && <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Nothing pending.</p>}
+      {notSubmitted.map((m) => (
+        <button key={m.id} onClick={() => openForEntry(m)} style={{ width: "100%", textAlign: "left", background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
-          <p style={{ fontSize: 11, color: textSecondary, margin: "3px 0 0" }}>tap to enter results</p>
+          <p style={{ fontSize: 11, color: textSecondary, margin: "3px 0 0" }}>tap to enter kills</p>
         </button>
       ))}
+
+      <SectionLabel>Awaiting your approval</SectionLabel>
+      {awaitingApproval.length === 0 && <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Nothing waiting on you.</p>}
+      {awaitingApproval.map((m) => (
+        <button key={m.id} onClick={() => openForReview(m)} style={{ width: "100%", textAlign: "left", background: bg1, border: `0.5px solid ${amber}55`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
+          <p style={{ fontSize: 11, color: amber, margin: "3px 0 0" }}>results submitted — tap to review and approve payout</p>
+        </button>
+      ))}
+
       <SectionLabel>Completed</SectionLabel>
-      {matches.filter((m) => m.completed).map((m) => (
+      {completedMatches.map((m) => (
         <div key={m.id} style={{ background: bg1, border: `0.5px solid ${border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: textPrimary, margin: 0 }}>{m.name}</p>
-          <p style={{ fontSize: 11, color: green, margin: "3px 0 0" }}>results finalized</p>
+          <p style={{ fontSize: 11, color: green, margin: "3px 0 0" }}>paid out</p>
         </div>
       ))}
     </div>
